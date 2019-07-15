@@ -1,7 +1,10 @@
 package com.nm.cameratest1;
 
 import android.graphics.SurfaceTexture;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -14,7 +17,7 @@ public class MainActivity extends AppCompatActivity {
     private TextureView.SurfaceTextureListener mSurfaceTextureListener= new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-
+            setUpCamera(width, height);
         }
 
         @Override
@@ -49,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
             closeCamera();
         }
     };
+    private String mCameraId;
 
 
 
@@ -66,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         if(mTextureView.isAvailable()){
-
+            setUpCamera(mTextureView.getWidth(), mTextureView.getHeight());
         }
         else {
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
@@ -94,6 +98,22 @@ public class MainActivity extends AppCompatActivity {
         if(mCameraDevice != null){
             mCameraDevice.close();
             mCameraDevice = null;
+        }
+    }
+
+    private void setUpCamera(int width, int height){
+        CameraManager cameraManager= (CameraManager)getSystemService(CAMERA_SERVICE);
+        try {
+            for (String cameraId: cameraManager.getCameraIdList()){
+                CameraCharacteristics cameraCharacteristics= cameraManager.getCameraCharacteristics(cameraId);
+                if(cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT){
+                    continue;
+                }
+                mCameraId = cameraId;
+                return;
+            }
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
         }
     }
 }
