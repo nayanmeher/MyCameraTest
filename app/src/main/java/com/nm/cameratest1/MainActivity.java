@@ -5,13 +5,26 @@ import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.SparseIntArray;
+import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
+    static {
+        ORIENTATIONS.append(Surface.ROTATION_0, 0);
+        ORIENTATIONS.append(Surface.ROTATION_90, 90);
+        ORIENTATIONS.append(Surface.ROTATION_180, 180);
+        ORIENTATIONS.append(Surface.ROTATION_270, 270);
+    }
+
 
     private TextureView mTextureView;
     private TextureView.SurfaceTextureListener mSurfaceTextureListener= new TextureView.SurfaceTextureListener() {
@@ -53,6 +66,9 @@ public class MainActivity extends AppCompatActivity {
         }
     };
     private String mCameraId;
+    private Handler mBackgroundHandler;
+    private HandlerThread mBackgroundHandlerThread;
+
 
 
 
@@ -69,12 +85,21 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+
+        startBackgroundThread();
         if(mTextureView.isAvailable()){
             setUpCamera(mTextureView.getWidth(), mTextureView.getHeight());
         }
         else {
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
         }
+    }
+
+    @Override
+    protected void onPause() {
+        closeCamera();
+        stopBackgroundThread();
+        super.onPause();
     }
 
     @Override
@@ -115,5 +140,22 @@ public class MainActivity extends AppCompatActivity {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
+    }
+    private void startBackgroundThread(){
+        mBackgroundHandlerThread = new HandlerThread("MyCameraTest");
+        mBackgroundHandlerThread.start();
+        mBackgroundHandler = new Handler(mBackgroundHandlerThread.getLooper());
+    }
+
+    private void stopBackgroundThread(){
+        mBackgroundHandlerThread.quitSafely();
+        try {
+            mBackgroundHandlerThread.join();
+            mBackgroundHandlerThread= null;
+            mBackgroundHandler= null;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
     }
 }
