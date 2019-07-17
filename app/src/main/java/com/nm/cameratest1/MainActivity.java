@@ -5,15 +5,22 @@ import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -23,6 +30,15 @@ public class MainActivity extends AppCompatActivity {
         ORIENTATIONS.append(Surface.ROTATION_90, 90);
         ORIENTATIONS.append(Surface.ROTATION_180, 180);
         ORIENTATIONS.append(Surface.ROTATION_270, 270);
+    }
+
+    private static class CompareSizeByArea implements Comparator<Size>{
+
+
+        @Override
+        public int compare(Size o1, Size o2) {
+            return Long.signum((long) o1.getWidth()* o1.getHeight() / (long)o2.getHeight()*o2.getWidth());
+        }
     }
 
     private int deviceOrientation;
@@ -65,12 +81,11 @@ public class MainActivity extends AppCompatActivity {
             closeCamera();
         }
     };
+
+    private Size mPreviewSize;
     private String mCameraId;
     private Handler mBackgroundHandler;
     private HandlerThread mBackgroundHandlerThread;
-
-
-
 
 
     @Override
@@ -135,6 +150,9 @@ public class MainActivity extends AppCompatActivity {
                     continue;
                 }
 
+                StreamConfigurationMap map= cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+
+
                 int deviceOrientation = getWindowManager().getDefaultDisplay().getRotation();
                 int totalRotation= sensorToDeviceRotation(cameraCharacteristics, deviceOrientation);
 
@@ -146,12 +164,13 @@ public class MainActivity extends AppCompatActivity {
                     rotatedWidth= height;
                     rotatedHeight= width;
                 }
+                mPreviewSize= chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class), rotatedWidth, rotatedHeight);
 
 
                 mCameraId = cameraId;
                 return;
             }
-        } catch (CameraAccessException e) {
+            } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
@@ -176,5 +195,23 @@ public class MainActivity extends AppCompatActivity {
         int sensorOrientation= cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
         deviceOrientation= ORIENTATIONS.get(deviceOrientation);
         return (deviceOrientation + sensorOrientation + 360)% 360;
+    }
+
+    private Size chooseOptimalSize(Size[] choices, int width, int height){
+        List<Size> bigEnough = new ArrayList<>();
+
+        for (Size option : choices){
+            if (option.getHeight() == option.getWidth() * height/ width &&
+                    option.getWidth() >= width && option.getHeight() >= height){
+                bigEnough.add(option);
+            }
+
+        }
+        if (bigEnough.size() > 0){
+            return Collections.min(bigEnough, new CompareSizeByArea());
+        }
+        else {
+            return  choices[0];
+        }
     }
 }
