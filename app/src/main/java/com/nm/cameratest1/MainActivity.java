@@ -25,7 +25,7 @@ public class MainActivity extends AppCompatActivity {
         ORIENTATIONS.append(Surface.ROTATION_270, 270);
     }
 
-
+    private int deviceOrientation;
     private TextureView mTextureView;
     private TextureView.SurfaceTextureListener mSurfaceTextureListener= new TextureView.SurfaceTextureListener() {
         @Override
@@ -134,6 +134,20 @@ public class MainActivity extends AppCompatActivity {
                 if(cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT){
                     continue;
                 }
+
+                int deviceOrientation = getWindowManager().getDefaultDisplay().getRotation();
+                int totalRotation= sensorToDeviceRotation(cameraCharacteristics, deviceOrientation);
+
+                boolean swapRotation = totalRotation == 90|| totalRotation == 270;
+
+                int rotatedWidth= width;
+                int rotatedHeight= height;
+                if (swapRotation){
+                    rotatedWidth= height;
+                    rotatedHeight= width;
+                }
+
+
                 mCameraId = cameraId;
                 return;
             }
@@ -157,5 +171,10 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
+    }
+    private static int sensorToDeviceRotation(CameraCharacteristics cameraCharacteristics, int deviceOrientation){
+        int sensorOrientation= cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+        deviceOrientation= ORIENTATIONS.get(deviceOrientation);
+        return (deviceOrientation + sensorOrientation + 360)% 360;
     }
 }
